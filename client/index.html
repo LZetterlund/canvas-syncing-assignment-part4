@@ -1,13 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script type="text/babel" >
         "use strict";
-    
+        let canvas = document.getElementById("canvas");
+        let ctx = canvas.getContext("2d");
+        let sendBufferCanvas;
+        let sendBufferCtx;
+
+        const socket = io.connect();
+
+        const connectSocket = (e) => {
+            socket.on('connect', () => {
+                console.log('connecting');
+
+                socket.emit('join');
+            });
+
+            socket.on('draw', (data) => {
+                console.log(data);
+                handleMessage(data);
+            });
+        };
+
+        const setup = () => {
+            sendBufferCanvas = document.createElement("canvas");
+            sendBufferCanvas.height = 200;
+            sendBufferCanvas.width = 200;
+            sendBufferCtx = sendBufferCanvas.getContext("2d");
+
+            ctx.fillStyle = "#000000"
+            ctx.fillRect(100, 100, 200, 200); //draw to screen-->
+            
+            sendBufferCtx.fillStyle = "#FF0000";
+            let newX = Math.floor(Math.random()*500 +10);
+            let newY = Math.floor(Math.random()*500 +10);
+            sendBufferCtx.fillRect(0,0, 200, 200); //draw to hidden buffer-->
+
+            const data = {
+                x: newX,
+                y: newY,
+                height: 200,
+                width: 200, 
+                imgData: sendBufferCanvas.toDataURL()    
+            };
+
+            socket.emit("update", data);
+        }
+
+        const handleMessage = (data) => {
+
+            let image = new Image();
+
+            image.onload = () => {
+                ctx.save();
+                ctx.globalCompositeOperation = "source-over"; //this is default for canvas-->
+                ctx.drawImage(image, data.x, data.y, data.width, data.height);    
+                ctx.restore();
+            };
+            
+            image.src = data.imgData;
+        }
+
+        const init = () => {
+            connectSocket();
+            setup();
+        };
+
+        window.onload = init;
     </script>
 </head>
 <body>
-
+    <canvas id="canvas" width="600" height="600" style="border: 1px solid black;"></canvas>
+    <p>Red square is your own client's. Black squares are other client's.</p>
 </body>
 </html>
